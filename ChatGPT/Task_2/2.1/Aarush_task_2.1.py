@@ -53,7 +53,7 @@ author_color_mapping  = {author: i for i, author in enumerate(sorted_authors_by_
 color_indices_per_author  = [author_color_mapping [author] for author in Auth]
 
 # Plot scatter plot
-plt.scatter(NumF, week, c=ColorIn, cmap='tab10', s=100, alpha=0.8)  
+plt.scatter(NumF, week, c=color_indices_per_author, cmap='tab10', s=100, alpha=0.8)  
 
 # Set axis limits and labels
 plt.xlim(-1, 17)  
@@ -64,8 +64,8 @@ plt.ylabel('Weeks')
 plt.title('Files Touched by Authors')
 
 # Colorbar with sorted commit counts in reverse
-colorbar = plt.colorbar(ticks=range(len(SortAuth)), label='The Number of Commits', orientation='vertical')
-colorbar.set_ticks(range(len(SortAuth)))
-colorbar.set_ticklabels(list(reversed([NumberOFA[author] for author in SortAuth])))
+colorbar = plt.colorbar(ticks=range(len(sorted_authors_by_commits)), label='The Number of Commits', orientation='vertical')
+colorbar.set_ticks(range(len(sorted_authors_by_commits)))
+colorbar.set_ticklabels(list(reversed([commit_count_per_author[author] for author in sorted_authors_by_commits])))
 
 plt.show()
