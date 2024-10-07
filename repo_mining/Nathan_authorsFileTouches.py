@@ -23,56 +23,50 @@ def github_auth(url, lsttoken, ct):
 # @lstTokens, GitHub authentication tokens
 # @repo, GitHub repo
 def countfiles(dictfiles, lsttokens, repo):
-    ipage = 1  # url page counter
+    ipage = 1  # URL page counter
     ct = 0  # token counter
 
-    # input programming languages of repo
-    languageExtensions = [".java", ".kt", ".ktm", "kts", ".cpp", ".c", ".cmake", ".cmake.in"]
+    # Define the relevant file extensions
+    language_extensions = {".java", ".kt", ".ktm", ".kts", ".cpp", ".c", ".cmake", ".cmake.in"}
 
     try:
-        # loop though all the commit pages until the last returned empty page
         while True:
-            spage = str(ipage)
-            commitsUrl = 'https://api.github.com/repos/' + repo + '/commits?page=' + spage + '&per_page=100'
-            jsonCommits, ct = github_auth(commitsUrl, lsttokens, ct)
+            # Fetch the list of commits from the repository
+            commits_url = f'https://api.github.com/repos/{repo}/commits?page={ipage}&per_page=100'
+            json_commits, ct = github_auth(commits_url, lsttokens, ct)
 
-            # break out of the while loop if there are no more commits in the pages
-            if len(jsonCommits) == 0:
+            # Break if no more commits are available
+            if not json_commits:
                 break
 
-            # iterate through the list of commits in  spage
-            for shaObject in jsonCommits:
-                sha = shaObject['sha']
-                commit = shaObject['commit']
-                author = commit['author']
-                authorName = author['name']
-                commitDate = author['date']
-                
-                # For each commit, use the GitHub commit API to extract the files touched by the commit
-                shaUrl = 'https://api.github.com/repos/' + repo + '/commits/' + sha
-                shaDetails, ct = github_auth(shaUrl, lsttokens, ct)
-                filesjson = shaDetails['files']
-                for filenameObj in filesjson:
-                    isSourceFile = False
-                    filename = filenameObj['filename']
-                    for x in languageExtensions:
-                        if filename.endswith(x):
-                            isSourceFile = True
-                    if not isSourceFile:
+            for sha_object in json_commits:
+                sha = sha_object['sha']
+                commit = sha_object['commit']
+                author_name = commit['author']['name']
+                commit_date = commit['author']['date']
+
+                # Fetch the files modified in the commit
+                sha_url = f'https://api.github.com/repos/{repo}/commits/{sha}'
+                sha_details, ct = github_auth(sha_url, lsttokens, ct)
+                filesjson = sha_details['files']
+
+                for file in filesjson:
+                    filename = file['filename']
+
+                    # Check if the file has a relevant extension
+                    if not any(filename.endswith(ext) for ext in language_extensions):
                         continue
-                    fileDict = {
-                        "author": authorName,
-                        "date": commitDate
-                    }
-                    if not filename in dictfiles.keys():
-                        dictfiles[filename] = [fileDict]
-                    else:
-                        dictfiles[filename].append(fileDict)
-                    # print(filename)
+
+                    file_entry = {"author": author_name, "date": commit_date}
+
+                    # Add or append the file information in dictfiles
+                    dictfiles.setdefault(filename, []).append(file_entry)
+
             ipage += 1
-    except:
-        print("Error receiving data")
-        exit(0)
+
+    except Exception as e:
+        print(f"Error receiving data: {e}")
+        exit(1)
 # GitHub repo
 repo = 'scottyab/rootbeer'
 # repo = 'Skyscanner/backpack' # This repo is commit heavy. It takes long to finish executing
