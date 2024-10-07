@@ -23,81 +23,81 @@ def github_auth(url, lsttoken, ct):
         print(e)
     return jsonData, ct
 
-# @dictFiles, empty dictionary of files
-# @lstTokens, GitHub authentication tokens
-# @repo, GitHub repo
-def countfiles(dictfiles, lsttokens, repo):
-    ipage = 1  # url page counter
-    ct = 0  # token counter
+# Helper function for GitHub API requests with authentication
+def github_request(url, tokens, token_index):
+    headers = {"Authorization": f"token {tokens[token_index % len(tokens)]}"}
+    response = requests.get(url, headers=headers)
 
-    STARTDATE = None
+    if response.status_code != 200:
+        raise Exception(f"Error fetching data from {url}")
+
+    return response.json(), (token_index + 1) % len(tokens)
+
+# Helper function to process files in a commit
+def process_commit_files(files, dict_files, author_name, author_touch_date, start_date):
+    date_format = "%Y-%m-%dT%H:%M:%SZ"
+    touch_date = datetime.strptime(author_touch_date, date_format)
+    start_date = datetime.strptime(start_date, date_format)
+    week_diff = (touch_date - start_date).days // 7
+
+    for file in files:
+        filename = file['filename']
+        if not any(ext in filename for ext in [".java", ".c", ".cpp", ".kt", "CMake"]):
+            continue
+
+        if filename not in dict_files:
+            dict_files[filename] = {'count': 0, 'authors': {}}
+
+        dict_files[filename]['count'] += 1
+
+        if author_name not in dict_files[filename]['authors']:
+            dict_files[filename]['authors'][author_name] = {'touches': 0, 'dates': []}
+
+        dict_files[filename]['authors'][author_name]['touches'] += 1
+        dict_files[filename]['authors'][author_name]['dates'].append(week_diff)
+
+# Main function to count files and commits
+def count_files(dict_files, tokens, repo):
+    page_num = 1
+    token_index = 0
+    start_date = None
+
+    # Fetch repository data to get the start date
     try:
-        repoUrl = 'https://api.github.com/repos/' + repo
-        jsonRepoData, ct = github_auth(repoUrl, lsttokens, ct)
-        if jsonRepoData:
-            STARTDATE = jsonRepoData['created_at']
-            #print(STARTDATE)
-    except:
-        print("Error receiving data (start commit)")
-        exit(0)
+        repo_url = f'https://api.github.com/repos/{repo}'
+        repo_data, token_index = github_request(repo_url, tokens, token_index)
+        start_date = repo_data['created_at']
+    except Exception as e:
+        print(f"Error fetching repository data: {e}")
+        exit(1)
 
-    try:
-        # loop though all the commit pages until the last returned empty page
-        while True:
-            spage = str(ipage)
-            commitsUrl = 'https://api.github.com/repos/' + repo + '/commits?page=' + spage + '&per_page=100'
-            try:
-                jsonCommits, ct = github_auth(commitsUrl, lsttokens, ct)
-            except:
-                print("error reciving data for commits page, skipping")
-                ipage+=1
-                continue
+    # Fetch commit data and process files in commits
+    while True:
+        try:
+            commits_url = f'https://api.github.com/repos/{repo}/commits?page={page_num}&per_page=100'
+            commits, token_index = github_request(commits_url, tokens, token_index)
 
-            # break out of the while loop if there are no more commits in the pages
-            if len(jsonCommits) == 0:
+            if not commits:  # Break loop if no more commits
                 break
-            # iterate through the list of commits in  spage
-            for shaObject in jsonCommits:
-                sha = shaObject['sha']
 
-                author_name = shaObject['commit']['author']['name']
-                author_touch_date = shaObject['commit']['author']['date']
-                # For each commit, use the GitHub commit API to extract the files touched by the commit
-                shaUrl = 'https://api.github.com/repos/' + repo + '/commits/' + sha
+            for commit in commits:
+                sha = commit['sha']
+                author_name = commit['commit']['author']['name']
+                author_touch_date = commit['commit']['author']['date']
+
+                # Fetch commit details to get the files
                 try:
-                    shaDetails, ct = github_auth(shaUrl, lsttokens, ct)
-                except:
-                    print("error reciving data for commit details SHA")
+                    sha_url = f'https://api.github.com/repos/{repo}/commits/{sha}'
+                    sha_details, token_index = github_request(sha_url, tokens, token_index)
+                    process_commit_files(sha_details['files'], dict_files, author_name, author_touch_date, start_date)
+                except Exception as e:
+                    print(f"Error fetching commit details for SHA {sha}: {e}")
                     continue
-                filesjson = shaDetails['files']
-                for filenameObj in filesjson:
-                    filename = filenameObj['filename']
-                    #Adapted CollectFiles script to only collect source files for repo 'scottyab/rootbeer'
-                    if filename.endswith(".java") or filename.endswith(".c") or filename.endswith(".cpp") or filename.endswith(".kt") or "CMake" in filename:
-                        if filename not in dictfiles:
-                            dictfiles[filename] = {
-                                    'count': 0,
-                                    'authors': {}
-                            }
-                        dictfiles[filename]['count'] += 1
-                        if author_name not in dictfiles[filename]['authors']:
-                            dictfiles[filename]['authors'][author_name] = {
-                                    'touches': 0,
-                                    'dates': []
-                            }
-                        dictfiles[filename]['authors'][author_name]['touches'] += 1
-                        #calc how many weeks
-                        date_format = "%Y-%m-%dT%H:%M:%SZ"
-                        touch_date = datetime.strptime(author_touch_date, date_format)
-                        start_date = datetime.strptime(STARTDATE, date_format)
-                        diff = touch_date - start_date
-                        week_count = diff.days // 7
-                        dictfiles[filename]['authors'][author_name]['dates'].append(week_count)
-                        print(filename)
-            ipage += 1
-    except:
-        print("Error receiving data, skipping")
-        exit(0)
+
+            page_num += 1
+        except Exception as e:
+            print(f"Error fetching commits data: {e}")
+            exit(1)
 # GitHub repo
 repo = 'scottyab/rootbeer'
 # repo = 'Skyscanner/backpack' # This repo is commit heavy. It takes long to finish executing
