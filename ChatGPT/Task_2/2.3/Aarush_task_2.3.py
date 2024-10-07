@@ -131,7 +131,7 @@ def get_author_commit_counter_list(authorCommitCounter: dict) -> list:
     # Convert the dictionary to a list of tuples and sort by commit counts in descending order
     authorCommitCounterList = sorted(authorCommitCounter.items(), key=lambda x: x[1], reverse=True)
     
-    return authorCommitCounterLis
+    return authorCommitCounterList
 
 
 # Main block where driving code is
