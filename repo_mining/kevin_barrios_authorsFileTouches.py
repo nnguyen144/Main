@@ -94,10 +94,43 @@ def count_files(dict_files, tokens, repo):
                     print(f"Error fetching commit details for SHA {sha}: {e}")
                     continue
 
+
             page_num += 1
         except Exception as e:
             print(f"Error fetching commits data: {e}")
             exit(1)
+
+                filesjson = shaDetails['files']
+                for filenameObj in filesjson:
+                    filename = filenameObj['filename']
+                    #Adapted CollectFiles script to only collect source files for repo 'scottyab/rootbeer'
+                    if not any(ext in filename for ext in [".java", ".c", ".cpp", ".kt", "CMake"]):
+                        if filename not in dictfiles:
+                            dictfiles[filename] = {
+                                    'count': 0,
+                                    'authors': {}
+                            }
+                        dictfiles[filename]['count'] += 1
+                        if author_name not in dictfiles[filename]['authors']:
+                            dictfiles[filename]['authors'][author_name] = {
+                                    'touches': 0,
+                                    'dates': []
+                            }
+                        dictfiles[filename]['authors'][author_name]['touches'] += 1
+                        #calc how many weeks
+                        date_format = "%Y-%m-%dT%H:%M:%SZ"
+                        touch_date = datetime.strptime(author_touch_date, date_format)
+                        start_date = datetime.strptime(STARTDATE, date_format)
+                        diff = touch_date - start_date
+                        week_count = diff.days // 7
+                        dictfiles[filename]['authors'][author_name]['dates'].append(week_count)
+                        print(filename)
+            ipage += 1
+    except:
+        print("Error receiving data, skipping")
+        exit(0)
+     
+
 # GitHub repo
 repo = 'scottyab/rootbeer'
 # repo = 'Skyscanner/backpack' # This repo is commit heavy. It takes long to finish executing
