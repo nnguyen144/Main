@@ -6,25 +6,25 @@ if not os.path.exists("data"):
  os.makedirs("data")
 
 # GitHub Authentication function
-def github_auth(url, lsttoken, ct):
+def github_auth(url, lsttoken, token_counter):
     jsonData = None
     try:
-        ct = ct % len(lstTokens)
-        headers = {'Authorization': 'Bearer {}'.format(lsttoken[ct])}
+        token_counter = token_counter % len(lstTokens)
+        headers = {'Authorization': 'Bearer {}'.format(lsttoken[token_counter])}
         request = requests.get(url, headers=headers)
         jsonData = json.loads(request.content)
-        ct += 1
+        token_counter += 1
     except Exception as e:
         pass
         print(e)
-    return jsonData, ct
+    return jsonData, token_counter
 
 # @dictFiles, empty dictionary of files
 # @lstTokens, GitHub authentication tokens
 # @repo, GitHub repo
 def countfiles(dictfiles, lsttokens, repo):
-    ipage = 1  # URL page counter
-    ct = 0  # token counter
+    page_counter = 1  # URL page counter
+    token_counter = 0  # token counter
 
     # Define the relevant file extensions
     language_extensions = {".java", ".kt", ".ktm", ".kts", ".cpp", ".c", ".cmake", ".cmake.in"}
@@ -32,8 +32,8 @@ def countfiles(dictfiles, lsttokens, repo):
     try:
         while True:
             # Fetch the list of commits from the repository
-            commits_url = f'https://api.github.com/repos/{repo}/commits?page={ipage}&per_page=100'
-            json_commits, ct = github_auth(commits_url, lsttokens, ct)
+            commits_url = f'https://api.github.com/repos/{repo}/commits?page={page_counter}&per_page=100'
+            json_commits, token_counter = github_auth(commits_url, lsttokens, token_counter)
 
             # Break if no more commits are available
             if not json_commits:
@@ -47,7 +47,7 @@ def countfiles(dictfiles, lsttokens, repo):
 
                 # Fetch the files modified in the commit
                 sha_url = f'https://api.github.com/repos/{repo}/commits/{sha}'
-                sha_details, ct = github_auth(sha_url, lsttokens, ct)
+                sha_details, token_counter = github_auth(sha_url, lsttokens, token_counter)
                 filesjson = sha_details['files']
 
                 for file in filesjson:
@@ -62,7 +62,7 @@ def countfiles(dictfiles, lsttokens, repo):
                     # Add or append the file information in dictfiles
                     dictfiles.setdefault(filename, []).append(file_entry)
 
-            ipage += 1
+            page_counter += 1
 
     except Exception as e:
         print(f"Error receiving data: {e}")
