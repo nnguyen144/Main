@@ -73,7 +73,7 @@ def countfiles(dictfiles, lsttokens, repo):
                 for filenameObj in filesjson:
                     filename = filenameObj['filename']
                     #Adapted CollectFiles script to only collect source files for repo 'scottyab/rootbeer'
-                    if filename.endswith(".java") or filename.endswith(".c") or filename.endswith(".cpp") or filename.endswith(".kt") or "CMake" in filename:
+                    if not any(ext in filename for ext in [".java", ".c", ".cpp", ".kt", "CMake"]):
                         if filename not in dictfiles:
                             dictfiles[filename] = {
                                     'count': 0,
@@ -98,6 +98,7 @@ def countfiles(dictfiles, lsttokens, repo):
     except:
         print("Error receiving data, skipping")
         exit(0)
+     
 # GitHub repo
 repo = 'scottyab/rootbeer'
 # repo = 'Skyscanner/backpack' # This repo is commit heavy. It takes long to finish executing
